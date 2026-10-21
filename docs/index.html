@@ -1,0 +1,2292 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Viajero Planner - Planificador y Bitácora de Viajes</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            },
+            surface: {
+              darker: '#030712',
+              dark: '#0f172a',
+              card: '#1e293b',
+              border: '#334155',
+              hover: '#283548'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  </style>
+</head>
+<body class="min-h-full flex flex-col bg-surface-darker text-slate-100 font-sans pb-24 antialiased selection:bg-brand-600 selection:text-white">
+
+  <!-- HEADER CON SELECTOR DE VIAJES Y RESUMEN -->
+  <header class="sticky top-0 z-40 bg-surface-dark/95 backdrop-blur-md border-b border-surface-border px-4 py-3">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="min-w-0 pr-2">
+        <div class="flex items-center gap-1.5 cursor-pointer" onclick="openModal('modalTripManager')" title="Cambiar o crear viaje">
+          <span class="text-lg">✈️</span>
+          <h1 id="headerTripTitle" class="text-sm font-extrabold tracking-tight text-white truncate max-w-[170px]">Mi Viaje</h1>
+          <span class="text-[10px] bg-brand-500/20 text-brand-300 font-bold px-1.5 py-0.5 rounded-md border border-brand-500/30">▾</span>
+        </div>
+        <p id="headerTripSubtitle" class="text-[11px] text-slate-400 truncate mt-0.5">Cargando viaje...</p>
+      </div>
+
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- Selector de Moneda y TRM -->
+        <button onclick="openModal('modalTripSetup')" class="flex items-center gap-1 bg-surface-card border border-surface-border text-slate-300 text-[10px] font-semibold px-2 py-1.5 rounded-lg active:scale-95 transition">
+          <span id="headerTRMBadge">1€ = $4.000</span>
+          <span>⚙️</span>
+        </button>
+
+        <!-- Botón Alergias / Info Médica -->
+        <button id="btnHeaderAllergies" onclick="openModal('modalTripAllergies')" class="flex items-center gap-1 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[10px] font-semibold px-2 py-1.5 rounded-lg active:scale-95 transition">
+          <span>⚠️</span>
+          <span>Médico</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- TARJETAS DE TOTALES SUPERIORES -->
+    <div class="max-w-md mx-auto grid grid-cols-3 gap-2 mt-2.5 pt-2 border-t border-surface-border/50 text-center">
+      <div class="bg-surface-card/60 p-2 rounded-xl border border-surface-border/50">
+        <p class="text-[9px] text-emerald-400 font-semibold uppercase">Pagado Base</p>
+        <p id="headerPaidCOP" class="text-xs font-extrabold text-white mt-0.5">$0</p>
+        <p id="headerPaidForeign" class="text-[9px] text-slate-400">0 €</p>
+      </div>
+      <div class="bg-surface-card/60 p-2 rounded-xl border border-surface-border/50">
+        <p class="text-[9px] text-amber-400 font-semibold uppercase">Por Pagar</p>
+        <p id="headerPendingCOP" class="text-xs font-extrabold text-white mt-0.5">$0</p>
+        <p id="headerPendingForeign" class="text-[9px] text-slate-400">0 €</p>
+      </div>
+      <div class="bg-surface-card/60 p-2 rounded-xl border border-surface-border/50">
+        <p class="text-[9px] text-indigo-400 font-semibold uppercase">Bitácora Gastos</p>
+        <p id="headerSpentCOP" class="text-xs font-extrabold text-white mt-0.5">$0</p>
+        <p id="headerSpentForeign" class="text-[9px] text-slate-400">0 €</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENEDOR PRINCIPAL -->
+  <main class="flex-1 max-w-md mx-auto w-full px-4 pt-3.5 space-y-4">
+
+    <!-- SECCIÓN 1: BITÁCORA Y GASTOS (POR DEFECTO ACTIVA) -->
+    <section id="tab-bitacora" class="tab-content space-y-3.5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-1.5">
+            <span>📝</span> Bitácora & Cuentas Claras
+          </h2>
+          <p class="text-xs text-slate-400">Gastos divididos, balance entre viajeros y deudas</p>
+        </div>
+        <button onclick="openModal('modalNuevoGasto')" class="bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold text-xs px-3 py-2 rounded-xl flex items-center gap-1 shadow-lg shadow-brand-600/30 transition">
+          <span class="text-base font-bold">+</span>
+          <span>Anotar</span>
+        </button>
+      </div>
+
+      <!-- TARJETA DE BALANCE DINÁMICA (TOCA PARA ABRIR Y FILTRAR GASTOS) -->
+      <div id="cardBalanceTravelers" onclick="scrollToExpenses('Todos')" class="bg-surface-card rounded-2xl p-4 border border-surface-border space-y-3 cursor-pointer hover:border-brand-500/60 transition shadow-lg relative group">
+        <div class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+          <span class="text-xs font-bold text-white flex items-center gap-1.5">
+            <span>⚖️</span> Balance de Cuentas (Bitácora)
+          </span>
+          <div class="flex items-center gap-1.5">
+            <span id="debtSummaryBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-surface-dark border border-surface-border text-slate-300">
+              Al día
+            </span>
+            <span class="text-[10px] text-brand-400 font-bold flex items-center gap-0.5 group-hover:underline">
+              Ver lista ▾
+            </span>
+          </div>
+        </div>
+
+        <!-- Cuentas por cada viajero (Generado dinámicamente) -->
+        <div id="travelersBalanceGrid" class="grid grid-cols-2 gap-2 text-center text-xs">
+          <!-- Dinámico -->
+        </div>
+
+        <!-- Conclusión de deuda en lenguaje natural -->
+        <div id="debtConclusionBox" class="bg-surface-darker/70 p-2.5 rounded-xl border border-surface-border/40 text-center text-xs font-bold text-slate-300">
+          Cuentas al día
+        </div>
+
+        <!-- Indicador visual interactivo -->
+        <div class="flex items-center justify-center gap-1.5 pt-0.5 text-[11px] text-brand-400 font-bold">
+          <span>👇 Toca aquí para ver todos los gastos anotados</span>
+        </div>
+      </div>
+
+      <!-- DESGLOSE POR PAÍSES / CIUDADES CON "VER DETALLE" -->
+      <div class="bg-surface-card rounded-2xl p-3.5 border border-surface-border space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-white flex items-center gap-1.5">
+            <span>🗺️</span> Gastos por Destino
+          </span>
+          <span class="text-[10px] text-slate-400">Toca para desplegar</span>
+        </div>
+        <div id="destinationBreakdownList" class="space-y-1.5 text-xs">
+          <!-- Dinámico -->
+        </div>
+      </div>
+
+      <!-- ENCABEZADO Y CONTROLES DE LA LISTA DE GASTOS -->
+      <div id="expensesSectionHeader" class="pt-2 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+              <span>🧾</span> Lista de Gastos
+            </h3>
+            <span id="expensesTotalBadge" class="text-[10px] bg-brand-500/20 text-brand-300 font-bold px-2 py-0.5 rounded-full">0 gastos</span>
+          </div>
+          <div id="activePayerFilterIndicator" class="text-[10px] font-semibold text-slate-400">
+            <!-- Dinámico -->
+          </div>
+        </div>
+
+        <!-- Buscador de Gastos en Bitácora -->
+        <div class="relative">
+          <input type="text" id="expenseSearchInput" oninput="handleExpenseSearch(this.value)" placeholder="🔍 Buscar gasto (ej: comida, taxi, metro, café)..." class="w-full bg-surface-dark border border-surface-border text-white text-xs rounded-xl pl-3 pr-8 py-2 focus:border-brand-500 focus:outline-none">
+          <button id="clearExpenseSearch" onclick="clearExpenseSearchInput()" class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-white text-xs">✕</button>
+        </div>
+
+        <!-- Filtro por Viajero / Pagador (Dinámico) -->
+        <div class="flex items-center gap-1.5 text-xs overflow-x-auto hide-scrollbar pb-0.5">
+          <span class="text-[10px] text-slate-400 font-semibold shrink-0">Pagó:</span>
+          <div id="travelerFilterPills" class="flex items-center gap-1.5">
+            <!-- Dinámico -->
+          </div>
+        </div>
+
+        <!-- Filtro rápido de bitácora por destino -->
+        <div id="cityFilterPills" class="flex gap-1.5 overflow-x-auto hide-scrollbar pb-1 text-xs font-semibold">
+          <!-- Dinámico -->
+        </div>
+      </div>
+
+      <!-- Lista de Gastos Registrados -->
+      <div id="expensesList" class="space-y-2.5 transition duration-300">
+        <!-- Dinámico -->
+      </div>
+
+      <!-- HERRAMIENTAS DE EXPORTACIÓN Y COPIA PARA TU EXCEL PERSONAL -->
+      <div class="bg-surface-card rounded-2xl p-4 border border-surface-border space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-xs font-bold text-white flex items-center gap-1">
+              <span>📋</span> Exportar a tu Excel Personal
+            </h3>
+            <p class="text-[10px] text-slate-400">Formato: Fecha, Monto, Deudor, Observación, Método</p>
+          </div>
+          <button onclick="copyExpensesForExcel()" class="bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold text-[10px] px-2.5 py-1.5 rounded-xl transition shadow">
+            Copiar Filas
+          </button>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-surface-border/60 text-xs text-slate-400">
+          <span>Backup completo (.json)</span>
+          <div class="flex items-center gap-2">
+            <button onclick="exportDataJSON()" class="bg-surface-dark border border-surface-border text-brand-400 hover:text-white font-semibold px-2 py-1 rounded-lg flex items-center gap-1">
+              <span>💾</span> Exportar
+            </button>
+            <label class="bg-surface-dark border border-surface-border text-slate-300 hover:text-white font-semibold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer">
+              <span>📥</span> Restaurar
+              <input type="file" id="importFileInput" accept=".json" onchange="importDataJSON(event)" class="hidden">
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 2: EXPLORADOR DE PLANES & PRECIOS PROMEDIO -->
+    <section id="tab-planes" class="tab-content hidden space-y-3.5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-1.5">
+            <span>🏛️</span> Explorador de Planes & Comparativa
+          </h2>
+          <p class="text-xs text-slate-400">Precios promedio, enlaces oficiales y entradas gratis</p>
+        </div>
+        <button onclick="openModal('modalNuevoPlanCustom')" class="bg-surface-dark hover:bg-surface-card border border-surface-border text-brand-400 font-bold text-xs px-2.5 py-1.5 rounded-xl flex items-center gap-1 transition">
+          <span>+</span> Crear Plan
+        </button>
+      </div>
+
+      <!-- Selector de Ciudad del Catálogo -->
+      <div id="catalogCityPills" class="flex gap-2 overflow-x-auto hide-scrollbar pb-1 text-xs font-semibold">
+        <!-- Dinámico -->
+      </div>
+
+      <!-- Lista del catálogo con comparativas -->
+      <div id="catalogList" class="space-y-3">
+        <!-- Dinámico -->
+      </div>
+    </section>
+
+    <!-- SECCIÓN 3: PRESUPUESTO BASE CONSOLIDADO -->
+    <section id="tab-presupuesto" class="tab-content hidden space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-1.5">
+            <span>💰</span> Presupuesto Base (Piso)
+          </h2>
+          <p class="text-xs text-slate-400">Vuelos, hospedajes y compromisos fijos</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openModal('modalAddBudgetItem')" class="bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs px-2.5 py-1 rounded-xl shadow transition">
+            + Ítem
+          </button>
+        </div>
+      </div>
+
+      <!-- Buscador en tiempo real de presupuesto -->
+      <div class="relative">
+        <input type="text" id="budgetSearchInput" oninput="handleBudgetSearch(this.value)" placeholder="🔍 Buscar vuelo, airbnb, hotel, tren, cuota..." class="w-full bg-surface-dark border border-surface-border text-white text-xs rounded-xl pl-3 pr-8 py-2.5 focus:border-brand-500 focus:outline-none">
+        <button id="clearBudgetSearch" onclick="clearBudgetSearchInput()" class="hidden absolute right-2.5 top-2.5 text-slate-400 hover:text-white text-xs">✕</button>
+      </div>
+
+      <!-- Filtros rápidos de estado y categoría -->
+      <div class="flex gap-2 overflow-x-auto hide-scrollbar pb-1 text-xs font-semibold">
+        <button onclick="setBudgetFilter('todos')" id="bf-todos" class="budget-filter-btn active bg-brand-600 text-white px-3 py-1.5 rounded-xl transition whitespace-nowrap">
+          Todos (<span id="bCountTodos">0</span>)
+        </button>
+        <button onclick="setBudgetFilter('pendiente')" id="bf-pendiente" class="budget-filter-btn bg-surface-card text-amber-300 px-3 py-1.5 rounded-xl border border-amber-500/30 hover:border-amber-500/60 transition whitespace-nowrap flex items-center gap-1">
+          <span>⏳</span> Solo Pendientes (<span id="bCountPendiente">0</span>)
+        </button>
+        <button onclick="setBudgetFilter('pagado')" id="bf-pagado" class="budget-filter-btn bg-surface-card text-emerald-300 px-3 py-1.5 rounded-xl border border-emerald-500/30 hover:border-emerald-500/60 transition whitespace-nowrap flex items-center gap-1">
+          <span>✅</span> Solo Pagados (<span id="bCountPagado">0</span>)
+        </button>
+        <button onclick="setBudgetFilter('transportes')" id="bf-transportes" class="budget-filter-btn bg-surface-card text-slate-300 px-3 py-1.5 rounded-xl border border-surface-border transition whitespace-nowrap flex items-center gap-1">
+          <span>✈️</span> Transportes
+        </button>
+        <button onclick="setBudgetFilter('alojamientos')" id="bf-alojamientos" class="budget-filter-btn bg-surface-card text-slate-300 px-3 py-1.5 rounded-xl border border-surface-border transition whitespace-nowrap flex items-center gap-1">
+          <span>🛏️</span> Alojamientos
+        </button>
+        <button onclick="setBudgetFilter('otrosFijos')" id="bf-otrosFijos" class="budget-filter-btn bg-surface-card text-slate-300 px-3 py-1.5 rounded-xl border border-surface-border transition whitespace-nowrap flex items-center gap-1">
+          <span>🎟️</span> Experiencias
+        </button>
+      </div>
+
+      <!-- Banner dinámico del filtro activo -->
+      <div id="budgetFilterSummaryBanner" class="p-2.5 rounded-xl text-xs bg-surface-dark border border-surface-border/60">
+        <!-- Dinámico -->
+      </div>
+
+      <!-- Desglose Transportes -->
+      <div id="cardTransportes" class="bg-surface-card rounded-2xl p-4 border border-surface-border space-y-3 transition">
+        <div class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+          <span class="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+            <span>✈️</span> Transportes y Vuelos
+          </span>
+          <span id="subtotalTransportes" class="text-xs font-extrabold text-white">$0</span>
+        </div>
+        <div id="listTransportes" class="space-y-2 text-xs">
+          <!-- Dinámico -->
+        </div>
+      </div>
+
+      <!-- Desglose Alojamientos -->
+      <div id="cardAlojamientos" class="bg-surface-card rounded-2xl p-4 border border-surface-border space-y-3 transition">
+        <div class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+          <span class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+            <span>🛏️</span> Alojamientos
+          </span>
+          <span id="subtotalAlojamientos" class="text-xs font-extrabold text-white">$0</span>
+        </div>
+        <div id="listAlojamientos" class="space-y-2 text-xs">
+          <!-- Dinámico -->
+        </div>
+      </div>
+
+      <!-- Desglose Otros Fijos -->
+      <div id="cardOtrosFijos" class="bg-surface-card rounded-2xl p-4 border border-surface-border space-y-3 transition">
+        <div class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+          <span class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+            <span>🎟️</span> Experiencias & Maletas
+          </span>
+          <span id="subtotalOtros" class="text-xs font-extrabold text-white">$0</span>
+        </div>
+        <div id="listOtrosFijos" class="space-y-2 text-xs">
+          <!-- Dinámico -->
+        </div>
+      </div>
+    </section>
+
+    <!-- SECCIÓN 4: ITINERARIO CON GESTIÓN DE DÍAS PASADOS -->
+    <section id="tab-itinerario" class="tab-content hidden space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-bold text-white flex items-center gap-1.5">
+            <span>🗺️</span> Itinerario Día a Día
+          </h2>
+          <p id="itineraryDaysCountSubtitle" class="text-xs text-slate-400">Días del viaje • Marca días como "Pasados" para archivar</p>
+        </div>
+      </div>
+
+      <!-- DÍAS ACTIVOS -->
+      <div id="itineraryTimelineActive" class="space-y-3">
+        <!-- Dinámico -->
+      </div>
+
+      <!-- CONTENEDOR COLAPSIBLE DE DÍAS PASADOS -->
+      <div id="pastDaysWrapper" class="pt-2 hidden">
+        <button onclick="togglePastDays()" class="w-full bg-surface-card border border-surface-border py-2.5 px-3 rounded-2xl flex items-center justify-between text-xs font-bold text-slate-400 hover:text-white transition">
+          <span class="flex items-center gap-1.5">
+            <span>📦</span> <span id="pastDaysCountLabel">Ver días pasados archivados (0)</span>
+          </span>
+          <span id="pastDaysChevron">▼</span>
+        </button>
+        <div id="itineraryTimelinePast" class="hidden space-y-3 mt-3">
+          <!-- Dinámico -->
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- BARRA DE NAVEGACIÓN INFERIOR MÓVIL -->
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-surface-dark/95 backdrop-blur-md border-t border-surface-border px-4 py-2">
+    <div class="max-w-md mx-auto grid grid-cols-4 gap-1 text-center">
+      <button onclick="switchTab('bitacora')" id="nav-bitacora" class="nav-tab active flex flex-col items-center gap-1 py-1 text-brand-400 font-bold text-[11px] transition">
+        <span class="text-lg">📝</span>
+        <span>Bitácora</span>
+      </button>
+      <button onclick="switchTab('planes')" id="nav-planes" class="nav-tab flex flex-col items-center gap-1 py-1 text-slate-400 text-[11px] transition">
+        <span class="text-lg">🏛️</span>
+        <span>Planes</span>
+      </button>
+      <button onclick="switchTab('presupuesto')" id="nav-presupuesto" class="nav-tab flex flex-col items-center gap-1 py-1 text-slate-400 text-[11px] transition">
+        <span class="text-lg">💰</span>
+        <span>Presupuesto</span>
+      </button>
+      <button onclick="switchTab('itinerario')" id="nav-itinerario" class="nav-tab flex flex-col items-center gap-1 py-1 text-slate-400 text-[11px] transition">
+        <span class="text-lg">🗺️</span>
+        <span>Itinerario</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ==================== MODALES ==================== -->
+
+  <!-- MODAL 1: BIENVENIDA / ONBOARDING EN PRIMERA VISITA -->
+  <div id="modalWelcomeOnboarding" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-3xl border border-surface-border p-6 space-y-5 shadow-2xl text-center">
+      <div class="space-y-1.5">
+        <span class="text-4xl block mb-2">🌍</span>
+        <h2 class="text-lg font-black text-white">¡Bienvenido a Viajero Planner!</h2>
+        <p class="text-xs text-slate-300">Tu planificador inteligente de presupuestos, bitácora de gastos compartidos e itinerario en vivo.</p>
+      </div>
+
+      <div class="space-y-3 text-left">
+        <!-- Opción A: Crear Viaje Nuevo -->
+        <div onclick="startCreateNewTripWizard()" class="bg-surface-dark border-2 border-brand-500/70 hover:border-brand-400 p-4 rounded-2xl cursor-pointer active:scale-95 transition shadow-lg space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white text-sm flex items-center gap-1.5">
+              <span>🚀</span> Crear Mi Viaje Desde Cero
+            </span>
+            <span class="text-brand-400 font-bold text-xs">Empezar →</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Configura tus fechas, destinos, monedas y los nombres de quienes viajan con saldo en $0.</p>
+        </div>
+
+        <!-- Opción B: Cargar Plantilla de Ejemplo -->
+        <div onclick="loadSampleEuroTripAction()" class="bg-surface-dark/70 border border-surface-border hover:border-surface-border/90 p-4 rounded-2xl cursor-pointer active:scale-95 transition space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-slate-200 text-sm flex items-center gap-1.5">
+              <span>✨</span> Usar Plantilla EuroTrip 2026
+            </span>
+            <span class="text-emerald-400 font-bold text-xs">Ver Ejemplo →</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Carga el viaje completo de Alan & Hillary (20 días, Madrid, Roma, París, Disney, etc.) como base.</p>
+        </div>
+      </div>
+
+      <p class="text-[10px] text-slate-500">Tus datos se guardan de forma privada en tu celular y funcionan offline.</p>
+    </div>
+  </div>
+
+  <!-- MODAL 2: GESTOR DE VIAJES (CAMBIAR / NUEVO / EDITAR) -->
+  <div id="modalTripManager" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>📁</span> Mis Viajes Guardados
+        </h3>
+        <button onclick="closeModal('modalTripManager')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <div id="tripManagerList" class="space-y-2">
+        <!-- Renderizado dinámico -->
+      </div>
+
+      <div class="pt-2 border-t border-surface-border/60 space-y-2">
+        <button onclick="closeModal('modalTripManager'); openModal('modalTripSetup')" class="w-full bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold py-2.5 rounded-xl text-xs shadow transition flex items-center justify-center gap-1.5">
+          <span>+</span> Crear Nuevo Viaje
+        </button>
+        <button onclick="loadSampleEuroTripAction()" class="w-full bg-surface-dark border border-surface-border text-slate-300 hover:text-white font-semibold py-2 rounded-xl text-xs transition">
+          🔄 Cargar Plantilla de Ejemplo EuroTrip
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: CONFIGURACIÓN O CREACIÓN DE VIAJE -->
+  <div id="modalTripSetup" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto animate-fade-in">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 id="modalTripSetupTitle" class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>⚙️</span> Configuración del Viaje
+        </h3>
+        <button onclick="closeModal('modalTripSetup')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <form id="formTripSetup" onsubmit="handleSaveTripSetup(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="setupTripId">
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Nombre del Viaje</label>
+          <input type="text" id="setupTripName" placeholder="Ej: Vacaciones Europa 2026, Cancún Amigos..." required
+            class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 text-xs font-semibold">
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Destino Principal</label>
+          <input type="text" id="setupTripDest" placeholder="Ej: Europa, España & Francia, México..." required
+            class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Fecha de Inicio</label>
+            <input type="date" id="setupTripStart" required class="w-full bg-surface-dark border border-surface-border rounded-xl px-2.5 py-2 text-white text-xs">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Fecha de Regreso</label>
+            <input type="date" id="setupTripEnd" required class="w-full bg-surface-dark border border-surface-border rounded-xl px-2.5 py-2 text-white text-xs">
+          </div>
+        </div>
+
+        <!-- Monedas y TRM -->
+        <div class="bg-surface-dark p-3 rounded-xl border border-surface-border space-y-2">
+          <label class="block text-slate-300 font-semibold">Monedas y Tasa de Cambio (TRM)</label>
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="block text-[10px] text-slate-400">Moneda Base</label>
+              <select id="setupTripCurrencyLocal" class="w-full bg-surface-card border border-surface-border rounded-lg p-1.5 text-white text-xs font-bold">
+                <option value="COP">COP ($)</option>
+                <option value="USD">USD ($)</option>
+                <option value="MXN">MXN ($)</option>
+                <option value="EUR">EUR (€)</option>
+                <option value="ARS">ARS ($)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400">Moneda Destino</label>
+              <select id="setupTripCurrencyForeign" class="w-full bg-surface-card border border-surface-border rounded-lg p-1.5 text-white text-xs font-bold">
+                <option value="EUR">EUR (€)</option>
+                <option value="USD">USD ($)</option>
+                <option value="GBP">GBP (£)</option>
+                <option value="JPY">JPY (¥)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-400">Tasa (1 Destino =)</label>
+              <input type="number" step="any" id="setupTripTRM" value="4000" required class="w-full bg-surface-card border border-surface-border rounded-lg p-1.5 text-white text-xs font-bold">
+            </div>
+          </div>
+        </div>
+
+        <!-- Quiénes viajan (Dinámico) -->
+        <div class="bg-surface-dark p-3 rounded-xl border border-surface-border space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-slate-300 font-semibold">Viajeros (Quiénes van)</label>
+            <button type="button" onclick="addTravelerInputRow()" class="text-[10px] text-brand-400 font-bold hover:underline">+ Agregar persona</button>
+          </div>
+          <div id="setupTravelersInputsList" class="space-y-1.5">
+            <!-- Dinámico -->
+          </div>
+          <p class="text-[10px] text-slate-400">Estos nombres aparecerán en la división de gastos y en el balance de deudas.</p>
+        </div>
+
+        <!-- Notas Médicas / Alergias -->
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Notas Médicas o Alergias (Opcional)</label>
+          <textarea id="setupTripAllergies" rows="2" placeholder="Ej: Alergia severa a maní / camarones..." class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2 text-white placeholder-slate-500 text-xs"></textarea>
+        </div>
+
+        <button type="submit" class="w-full bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-600/30 transition text-sm">
+          Guardar Viaje
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: ANOTAR NUEVO GASTO EN BITÁCORA -->
+  <div id="modalNuevoGasto" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>📝</span> Anotar Gasto en Bitácora
+        </h3>
+        <button onclick="closeModal('modalNuevoGasto')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <form id="formGasto" onsubmit="handleSaveExpense(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Descripción / Observación</label>
+          <input type="text" id="gastoDesc" placeholder="Ej: Cena pastas, taxi estación, café..." required
+            class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label id="lblGastoForeign" class="block text-slate-300 font-semibold mb-1">Monto en Moneda Destino</label>
+            <input type="number" step="any" id="gastoForeign" placeholder="Ej: 35" oninput="convertExpenseCurrency('FOREIGN')"
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 text-xs font-bold">
+          </div>
+          <div>
+            <label id="lblGastoLocal" class="block text-slate-300 font-semibold mb-1">Monto en Moneda Local</label>
+            <input type="number" step="any" id="gastoLocal" placeholder="Ej: 140000" oninput="convertExpenseCurrency('LOCAL')" required
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 text-xs font-bold">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Destino / Ciudad</label>
+            <input type="text" id="gastoCiudad" placeholder="Ej: Madrid, Roma..." required class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Categoría</label>
+            <select id="gastoCat" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+              <option value="Comida">Comida & Restaurantes</option>
+              <option value="Transporte">Transporte Local / Metro / Taxi</option>
+              <option value="Tours">Tours & Entradas</option>
+              <option value="Compras">Compras & Ropa</option>
+              <option value="Supermercado">Supermercado & Snacks</option>
+              <option value="Otros">Otros</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Método de Pago -->
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-slate-300 font-semibold">Método de Pago</label>
+            <button type="button" onclick="promptAddNewPaymentMethod()" class="text-[10px] text-brand-400 hover:underline">+ Crear Nuevo</button>
+          </div>
+          <select id="gastoMetodo" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs font-semibold">
+            <!-- Dinámico -->
+          </select>
+        </div>
+
+        <!-- ¿Quién pagó? (Generado dinámicamente según viajeros del viaje) -->
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">¿Quién desembolsó el dinero?</label>
+          <div id="payerRadioGroup" class="grid grid-cols-2 gap-2 text-center">
+            <!-- Dinámico -->
+          </div>
+        </div>
+
+        <!-- ¿Cómo se reparte? -->
+        <div class="bg-surface-dark p-3 rounded-xl border border-surface-border space-y-2">
+          <label class="block text-slate-300 font-semibold">¿Cómo se reparte este gasto?</label>
+          <div id="divisionRadioGroup" class="grid grid-cols-2 gap-1.5 text-center text-[11px]">
+            <!-- Dinámico -->
+          </div>
+          <p class="text-[10px] text-slate-400">Si se divide en partes iguales, el sistema calcula deudas automáticas.</p>
+        </div>
+
+        <button type="submit" class="w-full bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold py-3 rounded-xl mt-2 shadow-lg shadow-brand-600/30 transition text-sm">
+          Guardar Gasto
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 5: AGREGAR ÍTEM AL PRESUPUESTO BASE -->
+  <div id="modalAddBudgetItem" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl animate-fade-in">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>➕</span> Agregar Ítem al Presupuesto Base
+        </h3>
+        <button onclick="closeModal('modalAddBudgetItem')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <form id="formAddBudgetItem" onsubmit="handleSaveNewBudgetItem(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Categoría</label>
+          <select id="newBudgetType" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+            <option value="transportes">✈️ Transportes y Vuelos</option>
+            <option value="alojamientos">🛏️ Alojamientos</option>
+            <option value="otrosFijos">🎟️ Experiencias & Fijos</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Concepto</label>
+          <input type="text" id="newBudgetConcept" placeholder="Ej: Vuelo Madrid → Barcelona, Airbnb..." required
+            class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Monto Local ($)</label>
+            <input type="number" step="any" id="newBudgetCOP" required oninput="convertNewBudgetCurrency('LOCAL')"
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white font-bold text-xs">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Monto Destino</label>
+            <input type="number" step="any" id="newBudgetForeign" oninput="convertNewBudgetCurrency('FOREIGN')"
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white font-bold text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Estado</label>
+          <select id="newBudgetStatus" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+            <option value="pagado">🟢 Pagado</option>
+            <option value="reservado_por_pagar">🟡 Reservado (Cobro pendiente)</option>
+            <option value="cuota_nov">🟡 En cuotas</option>
+            <option value="pendiente">🔴 Pendiente por comprar/reservar</option>
+            <option value="gratis">🔵 Gratis</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Notas / Observaciones</label>
+          <input type="text" id="newBudgetNotes" placeholder="Detalles de confirmación, horas..." class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+        </div>
+
+        <button type="submit" class="w-full bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-600/30 transition text-sm">
+          Guardar en Presupuesto
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 6: EDITAR ÍTEM DEL PRESUPUESTO -->
+  <div id="modalEditBudget" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl animate-fade-in">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>✏️</span> Modificar Ítem del Presupuesto
+        </h3>
+        <button onclick="closeModal('modalEditBudget')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <form id="formEditBudget" onsubmit="handleSaveBudgetItem(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="editBudgetId">
+        <input type="hidden" id="editBudgetType">
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Concepto</label>
+          <input type="text" id="editBudgetConcept" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white font-semibold text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Monto Local ($)</label>
+            <input type="number" id="editBudgetCOP" required oninput="convertEditBudgetCurrency('LOCAL')"
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white font-bold text-xs">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Monto Destino</label>
+            <input type="number" step="any" id="editBudgetEUR" oninput="convertEditBudgetCurrency('FOREIGN')"
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white font-bold text-xs">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Estado</label>
+          <select id="editBudgetStatus" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white font-semibold text-xs">
+            <option value="pagado">🟢 Pagado</option>
+            <option value="reservado_por_pagar">🟡 Reservado (Cobro pendiente)</option>
+            <option value="cuota_nov">🟡 En cuotas</option>
+            <option value="pendiente">🔴 Pendiente por reservar/comprar</option>
+            <option value="gratis">🔵 Gratis</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Notas</label>
+          <input type="text" id="editBudgetNotes" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <button type="button" onclick="deleteBudgetItem()" class="w-1/3 bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 border border-rose-500/40 font-bold py-3 rounded-xl transition text-xs">
+            Eliminar
+          </button>
+          <button type="submit" class="w-2/3 bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-600/30 transition text-sm">
+            Guardar Cambios
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 7: AGENDAR PLAN AL ITINERARIO -->
+  <div id="modalAddPlanToItinerary" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl animate-fade-in max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>📅</span> Agendar Plan en el Itinerario
+        </h3>
+        <button onclick="closeModal('modalAddPlanToItinerary')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <form id="formAddPlan" onsubmit="handleConfirmAddToItinerary(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="addPlanId">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Actividad</label>
+          <input type="text" id="addPlanName" readonly class="w-full bg-surface-dark/70 border border-surface-border rounded-xl px-3 py-2.5 text-slate-200 font-bold text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Día del Viaje</label>
+            <select id="addPlanDay" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-brand-500 text-xs">
+              <!-- Dinámico -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Hora Estimada</label>
+            <input type="time" id="addPlanTime" value="10:30" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white focus:outline-none focus:border-brand-500 text-xs">
+          </div>
+        </div>
+
+        <div class="bg-surface-dark p-3 rounded-xl border border-surface-border text-slate-300 space-y-1">
+          <p class="text-[11px] font-semibold text-brand-300">Costo total para el grupo:</p>
+          <p id="addPlanCostPreview" class="text-sm font-extrabold text-white">$0</p>
+        </div>
+
+        <button type="submit" class="w-full bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-600/30 transition text-sm">
+          Agendar en Itinerario
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 8: CREAR PLAN PERSONALIZADO -->
+  <div id="modalNuevoPlanCustom" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl animate-fade-in">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+          <span>✨</span> Crear Nuevo Plan a Tu Gusto
+        </h3>
+        <button onclick="closeModal('modalNuevoPlanCustom')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <form id="formPlanCustom" onsubmit="handleSaveCustomPlan(event)" class="space-y-3 text-xs">
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Nombre de la actividad o lugar</label>
+          <input type="text" id="customPlanName" placeholder="Ej: Mirador, Cena especial, Museo..." required
+            class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white placeholder-slate-500 text-xs">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Destino / Ciudad</label>
+            <input type="text" id="customPlanCity" placeholder="Ej: Madrid, París..." required class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Categoría</label>
+            <select id="customPlanCat" class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+              <option value="Monumentos">Monumentos</option>
+              <option value="Comida">Restaurante / Comida</option>
+              <option value="Vistas y Calles">Vistas y Paseos</option>
+              <option value="Museos">Museos</option>
+              <option value="Fútbol">Deportes</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Precio por persona</label>
+            <input type="number" step="any" id="customPlanForeign" placeholder="0 si es gratis"
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs font-bold">
+          </div>
+          <div>
+            <label class="block text-slate-300 font-semibold mb-1">Día asignado (1 al total)</label>
+            <input type="number" min="1" id="customPlanDay" placeholder="Ej: 3" required
+              class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs font-bold">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-300 font-semibold mb-1">Fuente o comparativa de precio</label>
+          <input type="text" id="customPlanSource" placeholder="Ej: Civitatis / Web oficial..."
+            class="w-full bg-surface-dark border border-surface-border rounded-xl px-3 py-2.5 text-white text-xs">
+        </div>
+
+        <button type="submit" class="w-full bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold py-3 rounded-xl shadow-lg shadow-brand-600/30 transition text-sm">
+          Guardar Plan
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 9: INFORMACIÓN MÉDICA / ALERGIAS -->
+  <div id="modalTripAllergies" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div class="bg-surface-card w-full max-w-md rounded-t-3xl sm:rounded-3xl border border-surface-border p-5 space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-surface-border/60 pb-3">
+        <h3 class="text-sm font-bold text-rose-400 flex items-center gap-1.5">
+          <span>⚠️</span> Tarjeta de Alergias & Salud
+        </h3>
+        <button onclick="closeModal('modalTripAllergies')" class="text-slate-400 hover:text-white text-lg p-1">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div id="tripAllergiesContent" class="bg-rose-500/20 border border-rose-500/40 p-3 rounded-xl text-rose-200">
+          <!-- Dinámico -->
+        </div>
+
+        <!-- Frases multiidioma para restaurantes -->
+        <div class="space-y-2">
+          <div class="bg-surface-dark p-3 rounded-xl border border-surface-border">
+            <p class="font-bold text-amber-400">🇪🇸 En España (Mostrar al camarero):</p>
+            <p class="italic text-slate-200 mt-1">"Tenemos una alergia alimentaria grave. ¿Este plato lleva cacahuete o frutos secos, o puede tener trazas?"</p>
+          </div>
+          <div class="bg-surface-dark p-3 rounded-xl border border-surface-border">
+            <p class="font-bold text-emerald-400">🇮🇹 In Italia (Mostrare al cameriere):</p>
+            <p class="italic text-slate-200 mt-1">"Abbiamo un'allergia alimentare grave. Questo piatto contiene arachidi o tracce di arachidi?"</p>
+          </div>
+          <div class="bg-surface-dark p-3 rounded-xl border border-surface-border">
+            <p class="font-bold text-indigo-400">🇫🇷 En France (Montrer au serveur):</p>
+            <p class="italic text-slate-200 mt-1">"Nous avons une allergie alimentaire grave. Ce plat contient-il des arachides ou des traces ?"</p>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="closeModal('modalTripAllergies')" class="w-full bg-surface-dark border border-surface-border text-white font-bold py-2.5 rounded-xl text-xs">
+        Cerrar
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPT DE DATOS Y PLANTILLAS -->
+  <script src="data.js"></script>
+
+  <!-- LÓGICA PRINCIPAL DEL PLANIFICADOR UNIVERSAL -->
+  <script>
+    // Storage Key Principal
+    const STORAGE_KEY_UNIVERSAL = "viajero_planner_storage_v1";
+
+    // Estado en Memoria
+    let appData = {
+      activeTripId: null,
+      trips: [],
+      customPaymentMethods: ["Banco de Bogotá", "Nubank", "BBVA", "Bancolombia", "Efectivo", "Tarjeta Débito"]
+    };
+
+    let currentTrip = null;
+
+    // Filtros activos
+    let currentCityFilter = "Todas";
+    let currentPayerFilter = "Todos";
+    let currentExpenseSearchQuery = "";
+    let currentCatCityFilter = "Madrid";
+    let currentBudgetFilter = "todos";
+    let currentBudgetSearchQuery = "";
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initUniversalStorage();
+    });
+
+    // Formateadores
+    function formatMoney(num, currency) {
+      const curr = currency || (currentTrip ? currentTrip.monedaLocal : "COP");
+      return (curr === "COP" ? "$" : curr + " ") + Math.round(num || 0).toLocaleString("es-CO");
+    }
+
+    function formatForeign(num, currency) {
+      const curr = currency || (currentTrip ? currentTrip.monedaViaje : "EUR");
+      const symbol = curr === "EUR" ? "€" : (curr === "USD" ? "$" : curr);
+      return Math.round(num || 0).toLocaleString("es-CO") + " " + symbol;
+    }
+
+    // Inicialización del almacenamiento
+    function initUniversalStorage() {
+      const stored = localStorage.getItem(STORAGE_KEY_UNIVERSAL);
+      if (stored) {
+        try {
+          appData = JSON.parse(stored);
+        } catch(e) {
+          appData = { activeTripId: null, trips: [] };
+        }
+      }
+
+      if (!appData.trips || appData.trips.length === 0) {
+        // Primera visita: Mostrar modal de bienvenida
+        openModal("modalWelcomeOnboarding");
+      } else {
+        // Cargar viaje activo
+        let found = appData.trips.find(t => t.id === appData.activeTripId);
+        if (!found) found = appData.trips[0];
+        setActiveTrip(found.id);
+      }
+    }
+
+    function saveAppData() {
+      localStorage.setItem(STORAGE_KEY_UNIVERSAL, JSON.stringify(appData));
+    }
+
+    // Acciones del Onboarding de Bienvenida
+    function startCreateNewTripWizard() {
+      closeModal("modalWelcomeOnboarding");
+      // Abrir modal de setup para viaje nuevo
+      populateTripSetupForm(null);
+      openModal("modalTripSetup");
+    }
+
+    function loadSampleEuroTripAction() {
+      closeModal("modalWelcomeOnboarding");
+      closeModal("modalTripManager");
+
+      const sample = getSampleEuroTrip();
+      // Si ya existe uno con ese id, generamos uno nuevo
+      sample.id = "sample-" + Date.now();
+      
+      if (!appData.trips) appData.trips = [];
+      appData.trips.unshift(sample);
+      setActiveTrip(sample.id);
+      saveAppData();
+    }
+
+    // Activar un viaje
+    function setActiveTrip(tripId) {
+      const trip = appData.trips.find(t => t.id === tripId);
+      if (!trip) return;
+
+      appData.activeTripId = tripId;
+      currentTrip = trip;
+      saveAppData();
+
+      // Resetear filtros
+      currentCityFilter = "Todas";
+      currentPayerFilter = "Todos";
+      currentExpenseSearchQuery = "";
+      currentBudgetFilter = "todos";
+      currentBudgetSearchQuery = "";
+
+      renderHeaderInfo();
+      renderAllTabs();
+    }
+
+    // Renderizar Encabezado
+    function renderHeaderInfo() {
+      if (!currentTrip) return;
+
+      document.getElementById("headerTripTitle").innerText = currentTrip.nombre;
+      const viajerosStr = (currentTrip.viajeros || []).join(" & ");
+      document.getElementById("headerTripSubtitle").innerText = `${viajerosStr} • ${currentTrip.diasTotal || 1} días`;
+
+      const foreignSym = currentTrip.monedaViaje === "EUR" ? "€" : currentTrip.monedaViaje;
+      document.getElementById("headerTRMBadge").innerText = `1${foreignSym} = $${(currentTrip.trm || 4000).toLocaleString("es-CO")}`;
+
+      // Configurar etiquetas de moneda en formularios
+      const lblF = document.getElementById("lblGastoForeign");
+      if (lblF) lblF.innerText = `Monto en ${currentTrip.monedaViaje}`;
+      const lblL = document.getElementById("lblGastoLocal");
+      if (lblL) lblL.innerText = `Monto en ${currentTrip.monedaLocal}`;
+    }
+
+    // Renderizar Todas las Pestañas
+    function renderAllTabs() {
+      if (!currentTrip) return;
+      renderHeaderTotals();
+      renderBalanceAndDebts();
+      renderDestinationBreakdown();
+      renderExpenseFiltersUI();
+      renderExpensesList();
+      renderCatalog();
+      renderBaseBudget();
+      renderItinerary();
+      renderTripManagerList();
+      populateDaySelect();
+    }
+
+    // Totales en el Header
+    function renderHeaderTotals() {
+      if (!currentTrip) return;
+
+      let paidBase = 0;
+      let pendingBase = 0;
+
+      (currentTrip.presupuesto.transportes || []).forEach(t => {
+        if (t.estado === "pagado") paidBase += t.cop;
+        else if (t.estado === "cuota_nov") {
+          paidBase += (t.pagadoCOP || 0);
+          pendingBase += (t.pendienteCOP || t.cop);
+        } else if (t.estado === "pendiente" || t.estado === "reservado_por_pagar") {
+          pendingBase += t.cop;
+        }
+      });
+
+      (currentTrip.presupuesto.alojamientos || []).forEach(a => {
+        if (a.estado === "pagado") paidBase += a.cop;
+        else if (a.estado === "reservado_por_pagar" || a.estado === "pendiente") {
+          pendingBase += a.cop;
+        }
+      });
+
+      (currentTrip.presupuesto.otrosFijos || []).forEach(o => {
+        if (o.estado === "pagado") paidBase += o.cop;
+        else if (o.estado === "pendiente") pendingBase += o.cop;
+      });
+
+      let spentCustom = 0;
+      (currentTrip.gastos || []).forEach(e => {
+        if (!e.isBase) spentCustom += e.cop;
+      });
+
+      const trm = currentTrip.trm || 4000;
+
+      document.getElementById("headerPaidCOP").innerText = formatMoney(paidBase);
+      document.getElementById("headerPaidForeign").innerText = formatForeign(paidBase / trm);
+
+      document.getElementById("headerPendingCOP").innerText = formatMoney(pendingBase);
+      document.getElementById("headerPendingForeign").innerText = formatForeign(pendingBase / trm);
+
+      document.getElementById("headerSpentCOP").innerText = formatMoney(spentCustom);
+      document.getElementById("headerSpentForeign").innerText = formatForeign(spentCustom / trm);
+    }
+
+    // 1. Balance de Cuentas Dinámico según Viajeros
+    function renderBalanceAndDebts() {
+      const grid = document.getElementById("travelersBalanceGrid");
+      const conclusion = document.getElementById("debtConclusionBox");
+      const badge = document.getElementById("debtSummaryBadge");
+
+      const viajeros = currentTrip.viajeros || ["Viajero 1", "Viajero 2"];
+      const n = viajeros.length;
+
+      // Estructura de pagos
+      const paidBy = {};
+      const shareOf = {};
+      viajeros.forEach(v => {
+        paidBy[v] = 0;
+        shareOf[v] = 0;
+      });
+
+      (currentTrip.gastos || []).forEach(e => {
+        if (e.isBase) return; // Excluir compras previas
+
+        const val = e.cop || 0;
+        if (paidBy[e.pagador] !== undefined) {
+          paidBy[e.pagador] += val;
+        }
+
+        if (e.division === "50_50" || e.division === "iguales") {
+          const split = val / n;
+          viajeros.forEach(v => shareOf[v] += split);
+        } else if (e.division && e.division.startsWith("solo_")) {
+          const target = e.division.replace("solo_", "");
+          if (shareOf[target] !== undefined) {
+            shareOf[target] += val;
+          } else {
+            shareOf[e.pagador] = (shareOf[e.pagador] || 0) + val;
+          }
+        } else {
+          const split = val / n;
+          viajeros.forEach(v => shareOf[v] += split);
+        }
+      });
+
+      // Renderizar grid de viajeros
+      const colsClass = n === 1 ? "grid-cols-1" : (n === 2 ? "grid-cols-2" : "grid-cols-3");
+      grid.className = `grid ${colsClass} gap-2 text-center text-xs`;
+
+      const colors = ["text-indigo-300", "text-pink-300", "text-emerald-300", "text-amber-300", "text-purple-300"];
+      const borderHover = ["hover:border-indigo-500", "hover:border-pink-500", "hover:border-emerald-500", "hover:border-amber-500", "hover:border-purple-500"];
+
+      grid.innerHTML = viajeros.map((v, idx) => {
+        const color = colors[idx % colors.length];
+        const hover = borderHover[idx % borderHover.length];
+        return `
+          <div onclick="event.stopPropagation(); scrollToExpenses('${v}')" class="bg-surface-dark p-2.5 rounded-xl border border-surface-border/50 ${hover} active:scale-95 transition cursor-pointer">
+            <div class="flex items-center justify-between mb-0.5">
+              <p class="text-[10px] font-bold ${color}">👤 ${v}</p>
+              <span class="text-[8px] bg-white/10 text-slate-300 px-1 py-0.5 rounded font-semibold">Ver ▾</span>
+            </div>
+            <p class="text-xs font-extrabold ${color} mt-0.5">${formatMoney(paidBy[v])}</p>
+            <p class="text-[9px] text-slate-400 mt-0.5">Gasto real: <span class="text-slate-200 font-bold">${formatMoney(shareOf[v])}</span></p>
+          </div>
+        `;
+      }).join("");
+
+      // Conclusión de deuda
+      if (n === 1) {
+        conclusion.innerHTML = `<span class="text-slate-300">Viaje individual • Total desembolsado: <strong class="text-white">${formatMoney(paidBy[viajeros[0]])}</strong></span>`;
+        badge.innerText = "Al día";
+        badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+      } else if (n === 2) {
+        const v1 = viajeros[0];
+        const v2 = viajeros[1];
+        const netoV1 = paidBy[v1] - shareOf[v1];
+        const trm = currentTrip.trm || 4000;
+
+        if (Math.abs(netoV1) < 100) {
+          conclusion.innerHTML = `<span class="text-emerald-400">✨ Cuentas cuadradas: ninguno se debe nada</span>`;
+          badge.innerText = "Al día";
+          badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+        } else if (netoV1 > 0) {
+          conclusion.innerHTML = `👩 <span class="text-pink-300 font-bold">${v2} le debe a ${v1}:</span> <span class="text-white font-extrabold">${formatMoney(netoV1)}</span> (${formatForeign(netoV1 / trm)})`;
+          badge.innerText = `${v2} debe ${formatMoney(netoV1)}`;
+          badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/40";
+        } else {
+          const debt = Math.abs(netoV1);
+          conclusion.innerHTML = `👨 <span class="text-indigo-300 font-bold">${v1} le debe a ${v2}:</span> <span class="text-white font-extrabold">${formatMoney(debt)}</span> (${formatForeign(debt / trm)})`;
+          badge.innerText = `${v1} debe ${formatMoney(debt)}`;
+          badge.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40";
+        }
+      } else {
+        conclusion.innerHTML = `<span class="text-slate-300">Grupo de ${n} personas • Toca cada tarjeta para ver su detalle de gastos.</span>`;
+        badge.innerText = `${n} viajeros`;
+      }
+    }
+
+    // 2. Desglose por Destino
+    function renderDestinationBreakdown() {
+      const container = document.getElementById("destinationBreakdownList");
+      if (!currentTrip) return;
+
+      const destData = {};
+      (currentTrip.gastos || []).forEach(e => {
+        const c = e.ciudad || "Varios";
+        if (!destData[c]) destData[c] = { totalCOP: 0, items: [] };
+        destData[c].totalCOP += e.cop;
+        destData[c].items.push(e);
+      });
+
+      const cities = Object.keys(destData);
+      if (cities.length === 0) {
+        container.innerHTML = `<p class="text-slate-500 text-[11px] py-1 italic">Sin gastos anotados aún.</p>`;
+        return;
+      }
+
+      container.innerHTML = cities.map(city => {
+        const data = destData[city];
+        const collapseId = "collapse-" + city.replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+        return `
+          <div class="bg-surface-dark border border-surface-border/50 rounded-xl overflow-hidden">
+            <div onclick="toggleCollapse('${collapseId}')" class="p-2.5 flex items-center justify-between cursor-pointer hover:bg-surface-hover/30 transition">
+              <div class="flex items-center gap-1.5 font-bold text-slate-200">
+                <span>📍</span>
+                <span>${city}</span>
+                <span class="text-[10px] text-slate-400 font-normal">(${data.items.length})</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-white">${formatMoney(data.totalCOP)}</span>
+                <span id="icon-${collapseId}" class="text-[10px] text-slate-400">▼</span>
+              </div>
+            </div>
+
+            <div id="${collapseId}" class="hidden p-2.5 pt-0 border-t border-surface-border/30 space-y-1 text-[11px] bg-surface-darker/40">
+              ${data.items.map(i => `
+                <div class="flex items-center justify-between py-1 border-b border-surface-border/20 last:border-none">
+                  <div class="min-w-0 pr-2">
+                    <p class="font-medium text-slate-300 truncate">${i.desc}</p>
+                    <p class="text-[9px] text-slate-500">${i.fecha || 'Hoy'} • Pagó: ${i.pagador}</p>
+                  </div>
+                  <span class="font-bold text-white shrink-0">${formatMoney(i.cop)}</span>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function toggleCollapse(id) {
+      const el = document.getElementById(id);
+      const icon = document.getElementById("icon-" + id);
+      if (!el) return;
+      if (el.classList.contains("hidden")) {
+        el.classList.remove("hidden");
+        if (icon) icon.innerText = "▲";
+      } else {
+        el.classList.add("hidden");
+        if (icon) icon.innerText = "▼";
+      }
+    }
+
+    // 3. UI de Filtros en Bitácora
+    function renderExpenseFiltersUI() {
+      if (!currentTrip) return;
+
+      // Píldoras de viajeros
+      const pContainer = document.getElementById("travelerFilterPills");
+      const viajeros = ["Todos", ...(currentTrip.viajeros || [])];
+      pContainer.innerHTML = viajeros.map(v => `
+        <button onclick="setExpensePayerFilter('${v}')" id="ep-${v}" class="payer-filter-btn ${v === currentPayerFilter ? 'active bg-brand-600 text-white' : 'bg-surface-dark text-slate-300'} text-[11px] font-semibold px-2.5 py-1 rounded-lg border border-surface-border transition whitespace-nowrap">
+          ${v === 'Todos' ? 'Todos' : '👤 ' + v}
+        </button>
+      `).join("");
+
+      // Píldoras de ciudades
+      const cContainer = document.getElementById("cityFilterPills");
+      const uniqueCities = ["Todas"];
+      (currentTrip.gastos || []).forEach(e => {
+        if (e.ciudad && !uniqueCities.includes(e.ciudad)) uniqueCities.push(e.ciudad);
+      });
+
+      cContainer.innerHTML = uniqueCities.map(c => `
+        <button onclick="filterExpenses('${c}')" class="filter-btn ${c === currentCityFilter ? 'active bg-brand-600 text-white' : 'bg-surface-card text-slate-300'} px-2.5 py-1 rounded-lg border border-surface-border transition whitespace-nowrap" data-city="${c}">
+          ${c === 'Todas' ? 'Todos destinos' : '📍 ' + c}
+        </button>
+      `).join("");
+    }
+
+    function scrollToExpenses(payer) {
+      switchTab('bitacora');
+      currentPayerFilter = (payer && payer !== 'all') ? payer : 'Todos';
+      renderExpenseFiltersUI();
+      renderExpensesList();
+
+      setTimeout(() => {
+        const header = document.getElementById("expensesSectionHeader");
+        if (header) header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const list = document.getElementById("expensesList");
+        if (list) {
+          list.classList.add("ring-2", "ring-brand-500", "p-1.5", "rounded-2xl");
+          setTimeout(() => list.classList.remove("ring-2", "ring-brand-500", "p-1.5"), 1500);
+        }
+      }, 100);
+    }
+
+    function setExpensePayerFilter(payer) {
+      currentPayerFilter = payer;
+      renderExpenseFiltersUI();
+      renderExpensesList();
+    }
+
+    function filterExpenses(city) {
+      currentCityFilter = city;
+      renderExpenseFiltersUI();
+      renderExpensesList();
+    }
+
+    function handleExpenseSearch(q) {
+      currentExpenseSearchQuery = q || "";
+      const clearBtn = document.getElementById("clearExpenseSearch");
+      if (clearBtn) {
+        if (currentExpenseSearchQuery.trim().length > 0) clearBtn.classList.remove("hidden");
+        else clearBtn.classList.add("hidden");
+      }
+      renderExpensesList();
+    }
+
+    function clearExpenseSearchInput() {
+      const input = document.getElementById("expenseSearchInput");
+      if (input) input.value = "";
+      handleExpenseSearch("");
+    }
+
+    function resetExpenseFilters() {
+      currentCityFilter = "Todas";
+      currentPayerFilter = "Todos";
+      currentExpenseSearchQuery = "";
+      const input = document.getElementById("expenseSearchInput");
+      if (input) input.value = "";
+      const clearBtn = document.getElementById("clearExpenseSearch");
+      if (clearBtn) clearBtn.classList.add("hidden");
+      renderExpenseFiltersUI();
+      renderExpensesList();
+    }
+
+    // 4. Renderizar Lista de Gastos
+    function renderExpensesList() {
+      const container = document.getElementById("expensesList");
+      const badge = document.getElementById("expensesTotalBadge");
+      const indicator = document.getElementById("activePayerFilterIndicator");
+
+      if (!currentTrip) return;
+
+      const filtered = (currentTrip.gastos || []).filter(e => {
+        const matchCity = (currentCityFilter === "Todas") || (e.ciudad === currentCityFilter);
+        const matchPayer = (currentPayerFilter === "Todos") || (e.pagador === currentPayerFilter);
+
+        const q = currentExpenseSearchQuery.trim().toLowerCase();
+        const matchSearch = !q || (
+          (e.desc && e.desc.toLowerCase().includes(q)) ||
+          (e.ciudad && e.ciudad.toLowerCase().includes(q)) ||
+          (e.cat && e.cat.toLowerCase().includes(q)) ||
+          (e.metodo && e.metodo.toLowerCase().includes(q))
+        );
+
+        return matchCity && matchPayer && matchSearch;
+      });
+
+      if (badge) badge.innerText = `${filtered.length} gasto${filtered.length === 1 ? '' : 's'}`;
+
+      if (indicator) {
+        if (currentPayerFilter !== "Todos" || currentCityFilter !== "Todas" || currentExpenseSearchQuery.trim().length > 0) {
+          indicator.innerHTML = `
+            <button onclick="resetExpenseFilters()" class="text-[10px] text-brand-400 hover:text-white underline">
+              Filtro activo • Limpiar ✕
+            </button>
+          `;
+        } else {
+          indicator.innerHTML = "";
+        }
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="text-center py-6 bg-surface-card/40 rounded-2xl border border-surface-border/50 text-slate-400 space-y-2">
+            <span class="text-2xl block">☕</span>
+            <p class="text-xs">No hay gastos anotados que coincidan con estos filtros.</p>
+            <button onclick="resetExpenseFilters()" class="text-xs text-brand-400 hover:underline font-bold">Ver todos los gastos</button>
+          </div>
+        `;
+        return;
+      }
+
+      const trm = currentTrip.trm || 4000;
+
+      container.innerHTML = filtered.map(e => `
+        <div class="bg-surface-card p-3 rounded-2xl border border-surface-border flex items-center justify-between gap-2 shadow-sm hover:border-surface-border/80 transition">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 mb-0.5 flex-wrap">
+              <span class="text-[9px] bg-surface-dark font-semibold text-slate-300 px-2 py-0.5 rounded-full border border-surface-border">${e.ciudad}</span>
+              <span class="text-[9px] bg-brand-500/20 font-semibold text-brand-300 px-2 py-0.5 rounded-full">${e.cat}</span>
+              <span class="text-[9px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded-md font-semibold">${e.metodo || 'Efectivo'}</span>
+              <span class="text-[9px] text-slate-500">${e.fecha}</span>
+            </div>
+            <p class="text-xs font-bold text-white truncate">${e.desc}</p>
+            <p class="text-[10px] text-slate-400">
+              Pagó: <span class="text-slate-200 font-bold">${e.pagador}</span> • 
+              Reparto: <span class="text-slate-300 font-semibold">${e.division === '50_50' || e.division === 'iguales' ? 'En partes iguales' : 'Individual'}</span>
+            </p>
+          </div>
+          <div class="text-right flex items-center gap-2 shrink-0">
+            <div>
+              <p class="text-xs font-extrabold text-white">${formatMoney(e.cop)}</p>
+              <p class="text-[10px] text-emerald-400 font-semibold">${formatForeign(e.eur || (e.cop / trm))}</p>
+            </div>
+            ${!e.isBase ? `
+              <button onclick="deleteExpense('${e.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1" title="Eliminar gasto">🗑️</button>
+            ` : ''}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function deleteExpense(id) {
+      if (!confirm("¿Eliminar este gasto de la bitácora?")) return;
+      currentTrip.gastos = currentTrip.gastos.filter(e => e.id !== id);
+      saveAppData();
+      renderAllTabs();
+    }
+
+    // Guardar Gasto
+    function handleSaveExpense(e) {
+      e.preventDefault();
+      const desc = document.getElementById("gastoDesc").value.trim();
+      const cop = parseFloat(document.getElementById("gastoLocal").value) || 0;
+      const foreign = parseFloat(document.getElementById("gastoForeign").value) || (cop / (currentTrip.trm || 4000));
+      const ciudad = document.getElementById("gastoCiudad").value.trim();
+      const cat = document.getElementById("gastoCat").value;
+      const metodo = document.getElementById("gastoMetodo").value;
+      const pagador = document.querySelector('input[name="modalPagador"]:checked').value;
+      const division = document.querySelector('input[name="modalDivision"]:checked').value;
+
+      const hoy = new Date();
+      const fechaStr = `${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`;
+
+      const newExp = {
+        id: "exp-" + Date.now(),
+        fecha: fechaStr,
+        desc,
+        cop,
+        eur: foreign,
+        ciudad,
+        cat,
+        metodo,
+        pagador,
+        division,
+        isBase: false
+      };
+
+      if (!currentTrip.gastos) currentTrip.gastos = [];
+      currentTrip.gastos.unshift(newExp);
+      saveAppData();
+
+      closeModal("modalNuevoGasto");
+      document.getElementById("formGasto").reset();
+      renderAllTabs();
+      setTimeout(() => scrollToExpenses('Todos'), 200);
+    }
+
+    function convertExpenseCurrency(source) {
+      const trm = currentTrip ? (currentTrip.trm || 4000) : 4000;
+      if (source === 'FOREIGN') {
+        const val = parseFloat(document.getElementById("gastoForeign").value);
+        if (!isNaN(val)) document.getElementById("gastoLocal").value = Math.round(val * trm);
+      } else {
+        const val = parseFloat(document.getElementById("gastoLocal").value);
+        if (!isNaN(val)) document.getElementById("gastoForeign").value = (val / trm).toFixed(2);
+      }
+    }
+
+    // 5. Presupuesto Base y Filtros
+    function setBudgetFilter(filter) {
+      currentBudgetFilter = filter;
+      document.querySelectorAll(".budget-filter-btn").forEach(btn => {
+        btn.classList.remove("bg-brand-600", "text-white");
+        btn.classList.add("bg-surface-card");
+      });
+      const activeBtn = document.getElementById("bf-" + filter);
+      if (activeBtn) {
+        activeBtn.classList.add("bg-brand-600", "text-white");
+        activeBtn.classList.remove("bg-surface-card");
+      }
+      renderBaseBudget();
+    }
+
+    function handleBudgetSearch(q) {
+      currentBudgetSearchQuery = (q || "").trim().toLowerCase();
+      const clearBtn = document.getElementById("clearBudgetSearch");
+      if (clearBtn) {
+        if (currentBudgetSearchQuery.length > 0) clearBtn.classList.remove("hidden");
+        else clearBtn.classList.add("hidden");
+      }
+      renderBaseBudget();
+    }
+
+    function clearBudgetSearchInput() {
+      const input = document.getElementById("budgetSearchInput");
+      if (input) input.value = "";
+      handleBudgetSearch("");
+    }
+
+    function isItemPending(item) {
+      return item.estado === 'pendiente' || 
+             item.estado === 'reservado_por_pagar' || 
+             item.estado === 'cuota_nov' || 
+             item.estado === 'por_comprar' ||
+             item.estado === 'por_reservar';
+    }
+
+    function isItemPaid(item) {
+      return item.estado === 'pagado' || 
+             item.estado === 'gratis' || 
+             item.estado === 'cuota_nov';
+    }
+
+    function matchesBudgetFilter(item, categoryKey) {
+      if (['transportes', 'alojamientos', 'otrosFijos'].includes(currentBudgetFilter)) {
+        if (categoryKey !== currentBudgetFilter) return false;
+      }
+      if (currentBudgetFilter === 'pendiente' && !isItemPending(item)) return false;
+      if (currentBudgetFilter === 'pagado' && !isItemPaid(item)) return false;
+
+      if (currentBudgetSearchQuery.length > 0) {
+        const text = `${item.concepto || ''} ${item.notas || ''} ${item.ciudad || ''}`.toLowerCase();
+        if (!text.includes(currentBudgetSearchQuery)) return false;
+      }
+      return true;
+    }
+
+    function renderBaseBudget() {
+      if (!currentTrip || !currentTrip.presupuesto) return;
+
+      const p = currentTrip.presupuesto;
+      const allItems = [
+        ...(p.transportes || []).map(i => ({ ...i, _cat: 'transportes' })),
+        ...(p.alojamientos || []).map(i => ({ ...i, _cat: 'alojamientos' })),
+        ...(p.otrosFijos || []).map(i => ({ ...i, _cat: 'otrosFijos' }))
+      ];
+
+      let totalItems = allItems.length;
+      let pendingItems = 0;
+      let paidItems = 0;
+      let totalCOPAll = 0;
+      let totalPendingCOP = 0;
+      let totalPaidCOP = 0;
+
+      allItems.forEach(i => {
+        totalCOPAll += i.cop;
+        if (isItemPending(i)) {
+          pendingItems++;
+          totalPendingCOP += (i.estado === 'cuota_nov' ? (i.pendienteCOP || i.cop) : i.cop);
+        }
+        if (isItemPaid(i)) {
+          paidItems++;
+          totalPaidCOP += (i.estado === 'cuota_nov' ? (i.pagadoCOP || 0) : i.cop);
+        }
+      });
+
+      const bTodos = document.getElementById("bCountTodos");
+      const bPend = document.getElementById("bCountPendiente");
+      const bPag = document.getElementById("bCountPagado");
+      if (bTodos) bTodos.innerText = totalItems;
+      if (bPend) bPend.innerText = pendingItems;
+      if (bPag) bPag.innerText = paidItems;
+
+      const banner = document.getElementById("budgetFilterSummaryBanner");
+      const trm = currentTrip.trm || 4000;
+
+      if (banner) {
+        if (currentBudgetFilter === 'pendiente') {
+          banner.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-amber-400 font-bold flex items-center gap-1"><span>⏳</span> ${pendingItems} compromisos pendientes</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Por reservar o terminar de pagar</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-extrabold text-amber-300 text-sm">${formatMoney(totalPendingCOP)}</p>
+                <p class="text-[10px] text-slate-400">${formatForeign(totalPendingCOP / trm)}</p>
+              </div>
+            </div>
+          `;
+        } else if (currentBudgetFilter === 'pagado') {
+          banner.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-emerald-400 font-bold flex items-center gap-1"><span>✅</span> ${paidItems} ítems cubiertos</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Pagados o confirmados gratis</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-extrabold text-emerald-300 text-sm">${formatMoney(totalPaidCOP)}</p>
+                <p class="text-[10px] text-slate-400">${formatForeign(totalPaidCOP / trm)}</p>
+              </div>
+            </div>
+          `;
+        } else {
+          const pct = totalCOPAll > 0 ? Math.round((totalPaidCOP / totalCOPAll) * 100) : 100;
+          banner.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-white font-bold flex items-center gap-1">
+                  <span>📊</span> Total Base: <span class="text-brand-300">${formatMoney(totalCOPAll)}</span>
+                </p>
+                <p class="text-[10px] text-slate-400 mt-0.5">
+                  <span class="text-emerald-400 font-semibold">${formatMoney(totalPaidCOP)} pagado</span> • 
+                  <span class="text-amber-400 font-semibold">${formatMoney(totalPendingCOP)} por pagar</span>
+                </p>
+              </div>
+              <span class="text-[10px] bg-surface-card border border-surface-border font-bold text-slate-300 px-2 py-1 rounded-lg">
+                ${pct}% Cubierto
+              </span>
+            </div>
+          `;
+        }
+      }
+
+      // Visibilidad tarjetas
+      const cardT = document.getElementById("cardTransportes");
+      const cardA = document.getElementById("cardAlojamientos");
+      const cardO = document.getElementById("cardOtrosFijos");
+
+      if (['alojamientos', 'otrosFijos'].includes(currentBudgetFilter)) cardT.classList.add("hidden");
+      else cardT.classList.remove("hidden");
+
+      if (['transportes', 'otrosFijos'].includes(currentBudgetFilter)) cardA.classList.add("hidden");
+      else cardA.classList.remove("hidden");
+
+      if (['transportes', 'alojamientos'].includes(currentBudgetFilter)) cardO.classList.add("hidden");
+      else cardO.classList.remove("hidden");
+
+      // 1. Transportes
+      const fT = (p.transportes || []).filter(t => matchesBudgetFilter(t, 'transportes'));
+      let subT = 0;
+      fT.forEach(t => subT += t.cop);
+      document.getElementById("subtotalTransportes").innerText = formatMoney(subT);
+      document.getElementById("listTransportes").innerHTML = fT.length === 0 ? `<p class="text-center text-slate-500 py-2 italic">Sin ítems.</p>` : fT.map(t => renderBudgetItemRow(t, 'transportes')).join("");
+
+      // 2. Alojamientos
+      const fA = (p.alojamientos || []).filter(a => matchesBudgetFilter(a, 'alojamientos'));
+      let subA = 0;
+      fA.forEach(a => subA += a.cop);
+      document.getElementById("subtotalAlojamientos").innerText = formatMoney(subA);
+      document.getElementById("listAlojamientos").innerHTML = fA.length === 0 ? `<p class="text-center text-slate-500 py-2 italic">Sin ítems.</p>` : fA.map(a => renderBudgetItemRow(a, 'alojamientos')).join("");
+
+      // 3. Otros Fijos
+      const fO = (p.otrosFijos || []).filter(o => matchesBudgetFilter(o, 'otrosFijos'));
+      let subO = 0;
+      fO.forEach(o => subO += o.cop);
+      document.getElementById("subtotalOtros").innerText = formatMoney(subO);
+      document.getElementById("listOtrosFijos").innerHTML = fO.length === 0 ? `<p class="text-center text-slate-500 py-2 italic">Sin ítems.</p>` : fO.map(o => renderBudgetItemRow(o, 'otrosFijos')).join("");
+    }
+
+    function renderBudgetItemRow(item, type) {
+      let badge = "";
+      if (item.estado === 'pagado') {
+        badge = `<span class="text-[9px] bg-emerald-500/20 text-emerald-400 font-bold px-1.5 py-0.5 rounded">PAGADO</span>`;
+      } else if (item.estado === 'gratis') {
+        badge = `<span class="text-[9px] bg-blue-500/20 text-blue-400 font-bold px-1.5 py-0.5 rounded">GRATIS</span>`;
+      } else if (item.estado === 'cuota_nov') {
+        badge = `<span class="text-[9px] bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded">EN CUOTAS</span>`;
+      } else if (item.estado === 'reservado_por_pagar') {
+        badge = `<span class="text-[9px] bg-amber-500/20 text-amber-400 font-bold px-1.5 py-0.5 rounded">RESERVADO (PDTE)</span>`;
+      } else {
+        badge = `<span class="text-[9px] bg-rose-500/20 text-rose-400 font-bold px-1.5 py-0.5 rounded">POR COMPRAR</span>`;
+      }
+
+      return `
+        <div onclick="promptEditBudget('${item.id}', '${type}')" class="flex items-center justify-between py-1.5 border-b border-surface-border/40 last:border-none cursor-pointer hover:bg-surface-hover/40 px-1 rounded-lg transition">
+          <div class="min-w-0 pr-2">
+            <p class="font-semibold text-slate-200 truncate">${item.concepto}</p>
+            <p class="text-[10px] text-slate-400">${item.notas || ''}</p>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="font-extrabold ${item.estado === 'pagado' || item.estado === 'gratis' ? 'text-white' : 'text-amber-300'}">${formatMoney(item.cop)}</p>
+            ${badge}
+          </div>
+        </div>
+      `;
+    }
+
+    // Agregar / Editar Ítem Presupuesto
+    function handleSaveNewBudgetItem(e) {
+      e.preventDefault();
+      const type = document.getElementById("newBudgetType").value;
+      const concepto = document.getElementById("newBudgetConcept").value.trim();
+      const cop = parseFloat(document.getElementById("newBudgetCOP").value) || 0;
+      const foreign = parseFloat(document.getElementById("newBudgetForeign").value) || (cop / (currentTrip.trm || 4000));
+      const estado = document.getElementById("newBudgetStatus").value;
+      const notas = document.getElementById("newBudgetNotes").value.trim();
+
+      const newItem = {
+        id: "b-" + Date.now(),
+        concepto,
+        cop,
+        eur: foreign,
+        estado,
+        notas
+      };
+
+      if (!currentTrip.presupuesto[type]) currentTrip.presupuesto[type] = [];
+      currentTrip.presupuesto[type].push(newItem);
+      saveAppData();
+
+      closeModal("modalAddBudgetItem");
+      document.getElementById("formAddBudgetItem").reset();
+      renderAllTabs();
+    }
+
+    function promptEditBudget(id, type) {
+      const item = (currentTrip.presupuesto[type] || []).find(i => i.id === id);
+      if (!item) return;
+
+      document.getElementById("editBudgetId").value = id;
+      document.getElementById("editBudgetType").value = type;
+      document.getElementById("editBudgetConcept").value = item.concepto;
+      document.getElementById("editBudgetCOP").value = item.cop;
+      document.getElementById("editBudgetEUR").value = item.eur || (item.cop / (currentTrip.trm || 4000)).toFixed(2);
+      document.getElementById("editBudgetStatus").value = item.estado;
+      document.getElementById("editBudgetNotes").value = item.notas || "";
+
+      openModal("modalEditBudget");
+    }
+
+    function handleSaveBudgetItem(e) {
+      e.preventDefault();
+      const id = document.getElementById("editBudgetId").value;
+      const type = document.getElementById("editBudgetType").value;
+      const cop = parseFloat(document.getElementById("editBudgetCOP").value) || 0;
+      const foreign = parseFloat(document.getElementById("editBudgetEUR").value) || (cop / (currentTrip.trm || 4000));
+      const estado = document.getElementById("editBudgetStatus").value;
+      const notas = document.getElementById("editBudgetNotes").value.trim();
+      const concepto = document.getElementById("editBudgetConcept").value.trim();
+
+      const item = (currentTrip.presupuesto[type] || []).find(i => i.id === id);
+      if (item) {
+        item.concepto = concepto;
+        item.cop = cop;
+        item.eur = foreign;
+        item.estado = estado;
+        item.notas = notas;
+        saveAppData();
+      }
+
+      closeModal("modalEditBudget");
+      renderAllTabs();
+    }
+
+    function deleteBudgetItem() {
+      const id = document.getElementById("editBudgetId").value;
+      const type = document.getElementById("editBudgetType").value;
+      if (!confirm("¿Eliminar este ítem del presupuesto?")) return;
+
+      currentTrip.presupuesto[type] = (currentTrip.presupuesto[type] || []).filter(i => i.id !== id);
+      saveAppData();
+      closeModal("modalEditBudget");
+      renderAllTabs();
+    }
+
+    function convertNewBudgetCurrency(source) {
+      const trm = currentTrip ? (currentTrip.trm || 4000) : 4000;
+      if (source === 'FOREIGN') {
+        const val = parseFloat(document.getElementById("newBudgetForeign").value);
+        if (!isNaN(val)) document.getElementById("newBudgetCOP").value = Math.round(val * trm);
+      } else {
+        const val = parseFloat(document.getElementById("newBudgetCOP").value);
+        if (!isNaN(val)) document.getElementById("newBudgetForeign").value = (val / trm).toFixed(2);
+      }
+    }
+
+    function convertEditBudgetCurrency(source) {
+      const trm = currentTrip ? (currentTrip.trm || 4000) : 4000;
+      if (source === 'FOREIGN') {
+        const val = parseFloat(document.getElementById("editBudgetEUR").value);
+        if (!isNaN(val)) document.getElementById("editBudgetCOP").value = Math.round(val * trm);
+      } else {
+        const val = parseFloat(document.getElementById("editBudgetCOP").value);
+        if (!isNaN(val)) document.getElementById("editBudgetEUR").value = (val / trm).toFixed(2);
+      }
+    }
+
+    // 6. Itinerario
+    function renderItinerary() {
+      if (!currentTrip) return;
+
+      const activeContainer = document.getElementById("itineraryTimelineActive");
+      const pastContainer = document.getElementById("itineraryTimelinePast");
+      const pastWrapper = document.getElementById("pastDaysWrapper");
+      const pastCountLabel = document.getElementById("pastDaysCountLabel");
+
+      const days = currentTrip.itinerario || [];
+      document.getElementById("itineraryDaysCountSubtitle").innerText = `${days.length} días de aventura • Toca día para archivar`;
+
+      let activeHTML = "";
+      let pastHTML = "";
+      let pastCount = 0;
+
+      const pastSet = new Set(currentTrip.diasPasados || []);
+
+      days.forEach(d => {
+        const isPast = pastSet.has(d.day);
+        const dayPlans = (currentTrip.scheduledPlans || []).filter(p => p.dia === d.day);
+
+        const card = `
+          <div class="bg-surface-card rounded-2xl border ${isPast ? 'border-surface-border/40 opacity-70' : 'border-surface-border'} p-4 space-y-2.5 transition">
+            <div class="flex items-center justify-between border-b border-surface-border/60 pb-2">
+              <div class="flex items-center gap-2">
+                <span class="text-base">${d.flag || '📍'}</span>
+                <div>
+                  <h3 class="text-xs font-bold text-white">Día ${d.day < 10 ? '0' + d.day : d.day}: ${d.date}</h3>
+                  <p class="text-[10px] text-slate-400">${d.ciudad}</p>
+                </div>
+              </div>
+              <button onclick="toggleDayPast(${d.day})" class="text-[9px] px-2 py-1 rounded-lg border font-bold transition ${isPast ? 'bg-surface-dark border-surface-border text-slate-400' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'}">
+                ${isPast ? '📦 Pasado' : '✅ Marcar Pasado'}
+              </button>
+            </div>
+
+            <p class="text-xs text-slate-300">${d.desc || ''}</p>
+
+            ${d.hospedaje ? `<p class="text-[11px] text-slate-400">🏨 <strong>Alojamiento:</strong> ${d.hospedaje}</p>` : ''}
+            ${d.transporte ? `<p class="text-[11px] text-slate-400">🚆 <strong>Transporte:</strong> ${d.transporte}</p>` : ''}
+
+            <!-- Planes agendados -->
+            ${dayPlans.length > 0 ? `
+              <div class="space-y-1.5 pt-1">
+                ${dayPlans.map(p => `
+                  <div class="bg-surface-dark p-2 rounded-xl text-[11px] border border-surface-border flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="font-bold text-white truncate">⏰ ${p.hora || '10:00'} • ${p.nombre}</p>
+                      <p class="text-[9px] text-slate-400">${formatMoney(p.costoCOP)}</p>
+                    </div>
+                    <button onclick="removeScheduledPlan('${p.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1">✕</button>
+                  </div>
+                `).join("")}
+              </div>
+            ` : ''}
+          </div>
+        `;
+
+        if (isPast) {
+          pastHTML += card;
+          pastCount++;
+        } else {
+          activeHTML += card;
+        }
+      });
+
+      activeContainer.innerHTML = activeHTML || `<p class="text-center text-xs text-slate-400 py-6">Todos los días están archivados en Pasados.</p>`;
+      pastContainer.innerHTML = pastHTML;
+
+      if (pastCount > 0) {
+        pastWrapper.classList.remove("hidden");
+        pastCountLabel.innerText = `Ver días pasados archivados (${pastCount})`;
+      } else {
+        pastWrapper.classList.add("hidden");
+      }
+    }
+
+    function toggleDayPast(dayNum) {
+      if (!currentTrip.diasPasados) currentTrip.diasPasados = [];
+      const idx = currentTrip.diasPasados.indexOf(dayNum);
+      if (idx >= 0) currentTrip.diasPasados.splice(idx, 1);
+      else currentTrip.diasPasados.push(dayNum);
+      saveAppData();
+      renderItinerary();
+    }
+
+    function togglePastDays() {
+      const el = document.getElementById("itineraryTimelinePast");
+      const chev = document.getElementById("pastDaysChevron");
+      if (el.classList.contains("hidden")) {
+        el.classList.remove("hidden");
+        chev.innerText = "▲";
+      } else {
+        el.classList.add("hidden");
+        chev.innerText = "▼";
+      }
+    }
+
+    function removeScheduledPlan(id) {
+      currentTrip.scheduledPlans = (currentTrip.scheduledPlans || []).filter(p => p.id !== id);
+      saveAppData();
+      renderItinerary();
+    }
+
+    // 7. Catálogo de Planes
+    function renderCatalog() {
+      const container = document.getElementById("catalogList");
+      const pills = document.getElementById("catalogCityPills");
+
+      const cities = ["Madrid", "Barcelona", "Milán", "Como", "Roma", "Florencia", "París"];
+      pills.innerHTML = cities.map(c => `
+        <button onclick="filterCatalogCity('${c}')" class="cat-pill ${c === currentCatCityFilter ? 'active bg-brand-600 text-white' : 'bg-surface-card text-slate-300'} px-3 py-1.5 rounded-xl border border-surface-border transition whitespace-nowrap">
+          ${c}
+        </button>
+      `).join("");
+
+      const plans = (catalogPlans || []).filter(p => p.ciudad === currentCatCityFilter);
+      if (plans.length === 0) {
+        container.innerHTML = `<p class="text-center text-slate-500 py-6 text-xs">Sin planes pre-cargados para ${currentCatCityFilter}. Puedes agregar el tuyo con '+ Crear Plan'.</p>`;
+        return;
+      }
+
+      container.innerHTML = plans.map(p => `
+        <div class="bg-surface-card rounded-2xl p-4 border border-surface-border space-y-3">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5 mb-1 flex-wrap">
+                <span class="text-[9px] bg-brand-500/20 text-brand-300 font-bold px-2 py-0.5 rounded-full">${p.categoria}</span>
+                ${p.precioEUR_pp === 0 ? `<span class="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded-full">GRATIS</span>` : ''}
+              </div>
+              <h3 class="text-sm font-bold text-white">${p.nombre}</h3>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="text-sm font-black text-white">${p.precioEUR_pp === 0 ? '0 €' : p.precioEUR_pp + ' €'}</p>
+              <p class="text-[10px] text-slate-400 font-medium">por persona</p>
+            </div>
+          </div>
+
+          <p class="text-xs text-slate-300 leading-relaxed">${p.descripcion || ''}</p>
+          ${p.tips ? `<p class="text-[11px] text-amber-300 bg-amber-500/10 p-2 rounded-xl border border-amber-500/20">💡 ${p.tips}</p>` : ''}
+
+          <div class="pt-2 border-t border-surface-border/60 flex items-center justify-between">
+            <span class="text-[10px] text-slate-400">Fuente: ${p.fuentePrincipal || 'Web oficial'}</span>
+            <button onclick="promptAddToItinerary('${p.id}')" class="bg-brand-600 hover:bg-brand-500 active:scale-95 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+              <span>📅</span> Agendar
+            </button>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function filterCatalogCity(city) {
+      currentCatCityFilter = city;
+      renderCatalog();
+    }
+
+    function promptAddToItinerary(planId) {
+      const plan = (catalogPlans || []).find(p => p.id === planId);
+      if (!plan) return;
+
+      document.getElementById("addPlanId").value = plan.id;
+      document.getElementById("addPlanName").value = plan.nombre;
+      const numPeople = (currentTrip.viajeros || [1, 2]).length;
+      const totalEUR = plan.precioEUR_pp * numPeople;
+      const totalCOP = totalEUR * (currentTrip.trm || 4000);
+      document.getElementById("addPlanCostPreview").innerText = `${formatMoney(totalCOP)} (${formatForeign(totalEUR)}) para ${numPeople} personas`;
+
+      openModal("modalAddPlanToItinerary");
+    }
+
+    function handleConfirmAddToItinerary(e) {
+      e.preventDefault();
+      const planId = document.getElementById("addPlanId").value;
+      const day = parseInt(document.getElementById("addPlanDay").value);
+      const time = document.getElementById("addPlanTime").value;
+
+      const plan = (catalogPlans || []).find(p => p.id === planId);
+      if (!plan) return;
+
+      const numPeople = (currentTrip.viajeros || [1, 2]).length;
+      const totalEUR = plan.precioEUR_pp * numPeople;
+      const totalCOP = totalEUR * (currentTrip.trm || 4000);
+
+      const scheduled = {
+        id: "plan-" + Date.now(),
+        nombre: plan.nombre,
+        dia: day,
+        hora: time,
+        costoCOP: totalCOP,
+        costoEUR: totalEUR
+      };
+
+      if (!currentTrip.scheduledPlans) currentTrip.scheduledPlans = [];
+      currentTrip.scheduledPlans.push(scheduled);
+      saveAppData();
+
+      closeModal("modalAddPlanToItinerary");
+      switchTab('itinerario');
+    }
+
+    function handleSaveCustomPlan(e) {
+      e.preventDefault();
+      const name = document.getElementById("customPlanName").value.trim();
+      const city = document.getElementById("customPlanCity").value.trim();
+      const cat = document.getElementById("customPlanCat").value;
+      const eur = parseFloat(document.getElementById("customPlanForeign").value) || 0;
+      const day = parseInt(document.getElementById("customPlanDay").value) || 1;
+      const source = document.getElementById("customPlanSource").value.trim();
+
+      const numPeople = (currentTrip.viajeros || [1, 2]).length;
+      const totalEUR = eur * numPeople;
+      const totalCOP = totalEUR * (currentTrip.trm || 4000);
+
+      const newPlan = {
+        id: "custom-p-" + Date.now(),
+        nombre: name,
+        dia: day,
+        hora: "10:30",
+        costoCOP: totalCOP,
+        costoEUR: totalEUR
+      };
+
+      if (!currentTrip.scheduledPlans) currentTrip.scheduledPlans = [];
+      currentTrip.scheduledPlans.push(newPlan);
+      saveAppData();
+
+      closeModal("modalNuevoPlanCustom");
+      document.getElementById("formPlanCustom").reset();
+      switchTab('itinerario');
+    }
+
+    // 8. Gestor de Viajes y Setup
+    function renderTripManagerList() {
+      const container = document.getElementById("tripManagerList");
+      if (!container) return;
+
+      container.innerHTML = (appData.trips || []).map(t => {
+        const isActive = t.id === currentTrip.id;
+        const viajerosStr = (t.viajeros || []).join(", ");
+        return `
+          <div onclick="setActiveTrip('${t.id}'); closeModal('modalTripManager');" class="p-3 rounded-2xl border ${isActive ? 'bg-brand-600/20 border-brand-500' : 'bg-surface-dark border-surface-border'} flex items-center justify-between cursor-pointer hover:border-brand-500/60 transition">
+            <div class="min-w-0 pr-2">
+              <div class="flex items-center gap-1.5">
+                <span class="font-bold text-white text-xs truncate">${t.nombre}</span>
+                ${isActive ? `<span class="text-[9px] bg-brand-500 text-white font-extrabold px-1.5 py-0.2 rounded">ACTIVO</span>` : ''}
+              </div>
+              <p class="text-[10px] text-slate-400 mt-0.5">${t.destino || 'Destino'} • ${viajerosStr}</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <button onclick="event.stopPropagation(); populateTripSetupForm('${t.id}'); closeModal('modalTripManager'); openModal('modalTripSetup')" class="text-slate-400 hover:text-white text-xs p-1" title="Editar">✏️</button>
+              ${appData.trips.length > 1 ? `
+                <button onclick="event.stopPropagation(); deleteTrip('${t.id}')" class="text-slate-500 hover:text-rose-400 text-xs p-1" title="Eliminar">🗑️</button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function populateTripSetupForm(tripId) {
+      const trip = tripId ? appData.trips.find(t => t.id === tripId) : null;
+      document.getElementById("setupTripId").value = trip ? trip.id : "";
+      document.getElementById("modalTripSetupTitle").innerHTML = trip ? `<span>✏️</span> Editar Viaje: ${trip.nombre}` : `<span>🚀</span> Crear Nuevo Viaje`;
+
+      document.getElementById("setupTripName").value = trip ? trip.nombre : "";
+      document.getElementById("setupTripDest").value = trip ? trip.destino : "";
+      document.getElementById("setupTripStart").value = trip ? trip.fechaInicio : new Date().toISOString().split("T")[0];
+      document.getElementById("setupTripEnd").value = trip ? trip.fechaFin : new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0];
+
+      document.getElementById("setupTripCurrencyLocal").value = trip ? trip.monedaLocal : "COP";
+      document.getElementById("setupTripCurrencyForeign").value = trip ? trip.monedaViaje : "EUR";
+      document.getElementById("setupTripTRM").value = trip ? trip.trm : 4000;
+      document.getElementById("setupTripAllergies").value = trip ? (trip.alergiasOTexto || "") : "";
+
+      const travelersList = trip ? trip.viajeros : ["Viajero 1", "Viajero 2"];
+      renderTravelerInputRows(travelersList);
+    }
+
+    function renderTravelerInputRows(travelers) {
+      const container = document.getElementById("setupTravelersInputsList");
+      container.innerHTML = travelers.map((t, idx) => `
+        <div class="flex items-center gap-2 traveler-row">
+          <input type="text" value="${t}" placeholder="Nombre viajero ${idx + 1}" required class="traveler-name-input flex-1 bg-surface-card border border-surface-border rounded-xl px-3 py-2 text-white text-xs">
+          ${travelers.length > 1 ? `
+            <button type="button" onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-sm px-1.5">✕</button>
+          ` : ''}
+        </div>
+      `).join("");
+    }
+
+    function addTravelerInputRow() {
+      const container = document.getElementById("setupTravelersInputsList");
+      const count = container.querySelectorAll(".traveler-row").length + 1;
+      const div = document.createElement("div");
+      div.className = "flex items-center gap-2 traveler-row";
+      div.innerHTML = `
+        <input type="text" placeholder="Nombre viajero ${count}" required class="traveler-name-input flex-1 bg-surface-card border border-surface-border rounded-xl px-3 py-2 text-white text-xs">
+        <button type="button" onclick="this.parentElement.remove()" class="text-slate-500 hover:text-rose-400 text-sm px-1.5">✕</button>
+      `;
+      container.appendChild(div);
+    }
+
+    function handleSaveTripSetup(e) {
+      e.preventDefault();
+      const tripId = document.getElementById("setupTripId").value;
+      const nombre = document.getElementById("setupTripName").value.trim();
+      const destino = document.getElementById("setupTripDest").value.trim();
+      const fechaInicio = document.getElementById("setupTripStart").value;
+      const fechaFin = document.getElementById("setupTripEnd").value;
+      const monedaLocal = document.getElementById("setupTripCurrencyLocal").value;
+      const monedaViaje = document.getElementById("setupTripCurrencyForeign").value;
+      const trm = parseFloat(document.getElementById("setupTripTRM").value) || 4000;
+      const alergias = document.getElementById("setupTripAllergies").value.trim();
+
+      const travelers = [];
+      document.querySelectorAll(".traveler-name-input").forEach(input => {
+        const val = input.value.trim();
+        if (val) travelers.push(val);
+      });
+
+      if (travelers.length === 0) travelers.push("Viajero 1");
+
+      if (tripId) {
+        // Editar viaje existente
+        const trip = appData.trips.find(t => t.id === tripId);
+        if (trip) {
+          trip.nombre = nombre;
+          trip.destino = destino;
+          trip.fechaInicio = fechaInicio;
+          trip.fechaFin = fechaFin;
+          trip.monedaLocal = monedaLocal;
+          trip.monedaViaje = monedaViaje;
+          trip.trm = trm;
+          trip.alergiasOTexto = alergias;
+          trip.viajeros = travelers;
+        }
+        setActiveTrip(tripId);
+      } else {
+        // Crear viaje nuevo desde cero
+        const newTrip = createBlankTrip({
+          nombre,
+          destino,
+          fechaInicio,
+          fechaFin,
+          monedaLocal,
+          monedaViaje,
+          trm,
+          viajeros: travelers,
+          alergias
+        });
+        if (!appData.trips) appData.trips = [];
+        appData.trips.unshift(newTrip);
+        setActiveTrip(newTrip.id);
+      }
+
+      saveAppData();
+      closeModal("modalTripSetup");
+    }
+
+    function deleteTrip(id) {
+      if (appData.trips.length <= 1) {
+        alert("Debes tener al menos un viaje.");
+        return;
+      }
+      if (!confirm("¿Eliminar este viaje y todos sus registros?")) return;
+
+      appData.trips = appData.trips.filter(t => t.id !== id);
+      if (appData.activeTripId === id) {
+        appData.activeTripId = appData.trips[0].id;
+      }
+      saveAppData();
+      setActiveTrip(appData.activeTripId);
+    }
+
+    // Formularios Dinámicos de Gastos según Viajeros
+    function populateDaySelect() {
+      const select = document.getElementById("addPlanDay");
+      if (!select || !currentTrip) return;
+      select.innerHTML = (currentTrip.itinerario || []).map(d => `
+        <option value="${d.day}">Día ${d.day < 10 ? '0' + d.day : d.day} (${d.date}): ${d.ciudad}</option>
+      `).join("");
+
+      // Radio de pagadores
+      const pGroup = document.getElementById("payerRadioGroup");
+      const travelers = currentTrip.viajeros || ["Viajero 1", "Viajero 2"];
+      if (pGroup) {
+        pGroup.innerHTML = travelers.map((v, idx) => `
+          <label class="flex items-center justify-center p-2.5 rounded-xl border border-surface-border bg-surface-dark cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/20 text-xs font-bold text-slate-200">
+            <input type="radio" name="modalPagador" value="${v}" ${idx === 0 ? 'checked' : ''} class="hidden"> ${v}
+          </label>
+        `).join("");
+      }
+
+      // Radio de división
+      const dGroup = document.getElementById("divisionRadioGroup");
+      if (dGroup) {
+        let html = `
+          <label class="p-2 rounded-lg border border-surface-border bg-surface-card cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/20 font-semibold">
+            <input type="radio" name="modalDivision" value="iguales" checked class="hidden"> En partes iguales
+          </label>
+        `;
+        travelers.forEach(v => {
+          html += `
+            <label class="p-2 rounded-lg border border-surface-border bg-surface-card cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/20 font-semibold">
+              <input type="radio" name="modalDivision" value="solo_${v}" class="hidden"> 100% ${v}
+            </label>
+          `;
+        });
+        dGroup.innerHTML = html;
+      }
+
+      // Métodos de pago
+      const mSelect = document.getElementById("gastoMetodo");
+      if (mSelect) {
+        mSelect.innerHTML = (appData.customPaymentMethods || ["Efectivo", "Tarjeta"]).map(m => `
+          <option value="${m}">${m}</option>
+        `).join("");
+      }
+
+      // Alergias modal
+      const aBox = document.getElementById("tripAllergiesContent");
+      if (aBox) {
+        aBox.innerHTML = `
+          <p class="font-bold">🚨 INFORMACIÓN MÉDICA DEL VIAJE</p>
+          <p class="text-[11px] mt-1 text-slate-300">${currentTrip.alergiasOTexto || 'Sin alergias ni restricciones registradas para este viaje.'}</p>
+        `;
+      }
+    }
+
+    function promptAddNewPaymentMethod() {
+      const name = prompt("Nombre del nuevo método de pago (ej: Bancolombia, Tarjeta Oro, Revolut):");
+      if (name && name.trim()) {
+        const clean = name.trim();
+        if (!appData.customPaymentMethods) appData.customPaymentMethods = [];
+        if (!appData.customPaymentMethods.includes(clean)) {
+          appData.customPaymentMethods.push(clean);
+          saveAppData();
+          populateDaySelect();
+          document.getElementById("gastoMetodo").value = clean;
+        }
+      }
+    }
+
+    // Copiar filas para Excel
+    function copyExpensesForExcel() {
+      if (!currentTrip || !currentTrip.gastos || currentTrip.gastos.length === 0) {
+        alert("No hay gastos registrados en este viaje.");
+        return;
+      }
+
+      const rows = currentTrip.gastos.map(e => {
+        let deudor = e.pagador;
+        if (e.division === "iguales" || e.division === "50_50") {
+          deudor = (currentTrip.viajeros || []).join("/");
+        } else if (e.division && e.division.startsWith("solo_")) {
+          deudor = e.division.replace("solo_", "");
+        }
+        return `${e.fecha || ''}\t${Math.round(e.cop)}\t${deudor}\t${e.desc}\t${e.metodo || 'Efectivo'}`;
+      }).join("\n");
+
+      navigator.clipboard.writeText(rows).then(() => {
+        alert(`¡Copiadas ${currentTrip.gastos.length} filas al portapapeles!\n\nPégalas directamente en tu Excel personal.`);
+      }).catch(() => {
+        prompt("Copia las filas:", rows);
+      });
+    }
+
+    // Exportar / Importar Backup JSON
+    function exportDataJSON() {
+      const blob = new Blob([JSON.stringify(appData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `viajero_planner_backup_${new Date().toISOString().split("T")[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importDataJSON(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (parsed.trips && Array.isArray(parsed.trips)) {
+            appData = parsed;
+            saveAppData();
+            initUniversalStorage();
+            alert("¡Copia de seguridad restaurada con éxito!");
+          } else {
+            alert("Formato de backup no válido.");
+          }
+        } catch(err) {
+          alert("Error al leer el archivo JSON.");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Navegación
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-content").forEach(el => el.classList.add("hidden"));
+      document.querySelectorAll(".nav-tab").forEach(el => {
+        el.classList.remove("text-brand-400", "font-bold");
+        el.classList.add("text-slate-400");
+      });
+
+      document.getElementById("tab-" + tabId).classList.remove("hidden");
+      const activeNav = document.getElementById("nav-" + tabId);
+      if (activeNav) {
+        activeNav.classList.remove("text-slate-400");
+        activeNav.classList.add("text-brand-400", "font-bold");
+      }
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.remove("hidden");
+    }
+
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
