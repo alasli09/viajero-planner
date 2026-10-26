@@ -26,7 +26,7 @@ const initialBaseBudget = {
       estado: "cuota_nov",
       pagadoCOP: 4083695,
       pendienteCOP: 2041847,
-      notas: "Falta pagar la última cuota en noviembre (~$2.041.847 COP total)."
+      notas: "Ida AV46 (07:50 → 23:25) / Regreso AV27 (08:10 → 12:30). Falta pagar última cuota en noviembre (~$2.041.847 COP total)."
     },
     {
       id: "t-mad-bcn",
@@ -737,9 +737,9 @@ const defaultItineraryDays = [
     ciudad: "Barranquilla → Bogotá",
     flag: "🇨🇴",
     hospedaje: "Airbnb Bogotá (Noche previa)",
-    transporte: "✈️ Vuelo Nacional BAQ → BOG (Comprado)",
-    horarios: "Llegada en la tarde a Bogotá • Salir al aeropuerto a las 04:15 AM del día siguiente",
-    desc: "Vuelo a Bogotá y descanso temprano cerca de El Dorado. Noche obligada para no arriesgar el transatlántico.",
+    transporte: "✈️ Vuelo Nacional BAQ → BOG (Sale 13:10)",
+    horarios: "13:10 Despegue BAQ • 14:40 Aterrizaje BOG • Salir al aeropuerto a las 04:50 del día siguiente",
+    desc: "Vuelo a Bogotá a las 13:10 y descanso temprano cerca de El Dorado. Noche previa para madrugar al transatlántico.",
     planesFijos: ["Dormir temprano para madrugar"],
     oportunidadGratis: "Reservar online entradas gratis del Museo Picasso de BCN (se abren hoy a las 10:00 AM hora España)",
     estado: "pagado"
@@ -750,8 +750,8 @@ const defaultItineraryDays = [
     ciudad: "Bogotá → Madrid",
     flag: "✈️",
     hospedaje: "Airbnb Madrid I (Noche 1/3)",
-    transporte: "✈️ Avianca AV46: Sale 07:45 BOG → Llega 23:20 Barajas (MAD)",
-    horarios: "04:45 Estar en El Dorado • 07:45 Despegue • 23:20 Aterrizaje en Madrid (Hora España)",
+    transporte: "✈️ Avianca AV46: Sale 07:50 BOG → Llega 23:25 Barajas (MAD)",
+    horarios: "04:50 Estar en El Dorado • 07:50 Despegue • 23:25 Aterrizaje en Madrid (Hora España)",
     desc: "Vuelo transatlántico directo de 9h 35m. Salida del aeropuerto sobre medianoche y llegada al Airbnb en Madrid.",
     planesFijos: ["Vuelo AV46 transatlántico", "Check-in tardío en Madrid"],
     estado: "pagado"
@@ -976,9 +976,9 @@ const defaultItineraryDays = [
     ciudad: "Madrid → Bogotá",
     flag: "🇨🇴",
     hospedaje: "Bogotá (si regresan el 21) o Vuelo a BAQ",
-    transporte: "✈️ Avianca AV27: Sale 07:20 Madrid T4S → Llega 11:40 Bogotá El Dorado T1",
-    horarios: "04:30 Estar en Barajas (Taxi/Uber) • 07:20 Despegue • 11:40 Aterrizaje en Bogotá",
-    desc: "Vuelo transatlántico de vuelta. Sellar Tax Free (DIVA) antes de salir. Llegada a Bogotá y descanso o conexión a Barranquilla.",
+    transporte: "✈️ Avianca AV27: Sale 08:10 Madrid T4S → Llega 12:30 Bogotá El Dorado T1",
+    horarios: "05:10 Estar en Barajas • 08:10 Despegue MAD • 12:30 Aterrizaje BOG • Vuelo a BAQ por definir (20 o 21 Nov)",
+    desc: "Vuelo transatlántico de vuelta. Trámite Tax Free (DIVA) antes de salir. Llegada a Bogotá a las 12:30. Vuelo de retorno a Barranquilla pendiente por comprar (hora y fecha por definir).",
     planesFijos: ["Vuelo AV27 transatlántico", "Trámite Tax Free (DIVA) en Barajas"],
     estado: "pendiente"
   }
